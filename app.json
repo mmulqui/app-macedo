@@ -30,6 +30,9 @@
         "projectId": "848a2547-9598-4eee-9753-fefc21718db8"
       }
     },
-    "owner": "mmulqui"
+    "owner": "mmulqui",
+    "android": {
+      "package": "com.mmulqui.boltexponativewind"
+    }
   }
 }
