@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { login } from '@/services/auth';
 
 const GREEN = '#10B883';
 
@@ -18,18 +19,29 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<'email' | 'password' | null>(null);
 
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
 
-  function handleSignIn() {
+  async function handleSignIn() {
     if (!email.trim() || !password) {
       setError('Por favor completa todos los campos.');
       return;
     }
-    setError(null);
-    router.replace('/home');
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      await login(email.trim(), password);
+      router.replace('/home');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo iniciar sesión.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const inputStyle = (field: 'email' | 'password') =>
@@ -107,10 +119,13 @@ export default function LoginScreen() {
 
                 <TouchableOpacity
                   onPress={handleSignIn}
+                  disabled={loading}
                   activeOpacity={0.8}
                   className="rounded-full h-11 items-center justify-center mt-8 mx-5"
-                  style={{ backgroundColor: GREEN }}>
-                  <Text className="text-white text-base">Iniciar</Text>
+                  style={{ backgroundColor: GREEN, opacity: loading ? 0.7 : 1 }}>
+                  <Text className="text-white text-base">
+                    {loading ? 'Ingresando...' : 'Iniciar'}
+                  </Text>
                 </TouchableOpacity>
 
                 <View className="flex-row flex-wrap justify-center mt-10">

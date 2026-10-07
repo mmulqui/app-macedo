@@ -38,6 +38,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="home" />
         <Stack.Screen name="signup" />
+        <Stack.Screen name="products" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="dark" />

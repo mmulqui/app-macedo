@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { signup } from '@/services/auth';
 import { ChevronLeft } from 'lucide-react-native';
 
 const GREEN = '#10B883';
@@ -19,23 +20,11 @@ type FieldProps = {
   label: string;
   value: string;
   onChangeText: (t: string) => void;
-  placeholder?: string;
   secure?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'numeric';
-  autoCapitalize?: 'none' | 'words';
-  maxLength?: number;
+  keyboardType?: 'default' | 'email-address';
 };
 
-function Field({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  secure,
-  keyboardType = 'default',
-  autoCapitalize = 'none',
-  maxLength,
-}: FieldProps) {
+function Field({ label, value, onChangeText, secure, keyboardType = 'default' }: FieldProps) {
   const [focused, setFocused] = useState(false);
   return (
     <View className="mb-5">
@@ -43,13 +32,11 @@ function Field({
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
         placeholderTextColor="rgba(255,255,255,0.75)"
         secureTextEntry={secure}
         keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
+        autoCapitalize="none"
         autoCorrect={false}
-        maxLength={maxLength}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         style={
@@ -67,91 +54,34 @@ function Field({
   );
 }
 
-// Formatea los dígitos como dd/mm/aaaa mientras se escribe
-function formatDate(text: string) {
-  const d = text.replace(/\D/g, '').slice(0, 8);
-  if (d.length <= 2) return d;
-  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
-  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
-}
-
 export default function SignupScreen() {
-  const [nombre, setNombre] = useState('');
-  const [apellido, setApellido] = useState('');
-  const [dni, setDni] = useState('');
-  const [fecha, setFecha] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
 
-  function handleSignUp() {
-    if (!nombre.trim() || !apellido.trim() || !dni.trim() || fecha.length < 10 || !email.trim()) {
-      setError('Por favor completa todos los campos.');
+  async function handleSignUp() {
+    // El backend exige una contraseña de 8 a 72 caracteres
+    if (!email.trim() || password.length < 8 || password.length > 72) {
+      setError('Usá un correo válido y una contraseña de 8 a 72 caracteres.');
       return;
     }
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
-      return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      await signup(email.trim(), password);
+      router.replace('/');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo registrar.');
+    } finally {
+      setLoading(false);
     }
-    if (password !== confirm) {
-      setError('Las contraseñas no coinciden.');
-      return;
-    }
-    setError(null);
-    router.replace('/home');
   }
-
-  const leftColumn = (
-    <View style={{ flex: 1 }}>
-      <Field label="Nombre" value={nombre} onChangeText={setNombre} autoCapitalize="words" />
-      <Field label="Apellido" value={apellido} onChangeText={setApellido} autoCapitalize="words" />
-      <Field
-        label="DNI"
-        value={dni}
-        onChangeText={(t) => setDni(t.replace(/\D/g, ''))}
-        keyboardType="numeric"
-        maxLength={9}
-      />
-      <Field
-        label="Fecha de nacimiento"
-        value={fecha}
-        onChangeText={(t) => setFecha(formatDate(t))}
-        placeholder="dd/mm/aaaa"
-        keyboardType="numeric"
-        maxLength={10}
-      />
-    </View>
-  );
-
-  const rightColumn = (
-    <View style={{ flex: 1 }}>
-      <Field
-        label="E-mail"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-      />
-      <Field label="Contraseña" value={password} onChangeText={setPassword} secure />
-      <Field label="Confirmar Contraseña" value={confirm} onChangeText={setConfirm} secure />
-
-      {error && (
-        <View className="bg-white rounded-xl px-4 py-2 mb-3">
-          <Text className="text-[#A93E2B] text-xs">{error}</Text>
-        </View>
-      )}
-
-      <TouchableOpacity
-        onPress={handleSignUp}
-        activeOpacity={0.8}
-        className="rounded-full h-11 px-12 items-center justify-center border border-white self-center mt-4">
-        <Text className="text-white text-base">Registrarse</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <SafeAreaView className="flex-1 bg-[#E5E5E5]">
@@ -181,7 +111,7 @@ export default function SignupScreen() {
                 marginLeft: isWide ? 28 : 0,
                 marginTop: isWide ? 0 : 64,
                 paddingTop: 36,
-                paddingBottom: 40,
+                paddingBottom: 48,
                 paddingRight: isWide ? 60 : 28,
                 paddingLeft: isWide ? 80 : 28,
                 ...(isWide
@@ -193,9 +123,40 @@ export default function SignupScreen() {
               </Text>
 
               <View style={{ flexDirection: isWide ? 'row' : 'column', gap: isWide ? 30 : 0 }}>
-                {leftColumn}
-                {rightColumn}
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="E-mail"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="Contraseña"
+                    value={password}
+                    onChangeText={setPassword}
+                    secure
+                  />
+                </View>
               </View>
+
+              {error && (
+                <View className="bg-white rounded-xl px-4 py-2 mb-3 self-center">
+                  <Text className="text-[#A93E2B] text-xs">{error}</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={handleSignUp}
+                disabled={loading}
+                activeOpacity={0.8}
+                className="rounded-full h-11 px-12 items-center justify-center border border-white self-center mt-4"
+                style={{ opacity: loading ? 0.7 : 1 }}>
+                <Text className="text-white text-base">
+                  {loading ? 'Registrando...' : 'Registrarse'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
